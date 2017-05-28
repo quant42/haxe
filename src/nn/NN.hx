@@ -51,7 +51,7 @@ class NN {
         var next:Vector<Float>;
         var z:Int = 0;
         for (i in 1...this.layout.length) {
-            next = new Vector(this.layout[i]);
+            next = new Vector<Float>(this.layout[i]);
             // fill out next vector
             for (j in 0...next.length) {
                 var tmp:Float = 0;
@@ -84,14 +84,14 @@ class NN {
         }
         // convert layout
         var layoutArr:Array<String> = data[0].split(";");
-        var l:Vector<Int> = new Vector(layoutArr.length);
+        var l:Vector<Int> = new Vector<Int>(layoutArr.length);
         var i:Int = 0;
         for (d in layoutArr) {
             l[i++] = Std.parseInt(d);
         }
         // convert weights
         var weightArr:Array<String> = data[1].split(";");
-        var v:Vector<Float> = new Vector(weightArr.length);
+        var v:Vector<Float> = new Vector<Float>(weightArr.length);
         i = 0;
         for (d in weightArr) {
             v[i++] = Std.parseFloat(d);
@@ -100,13 +100,28 @@ class NN {
         return new NN(l, v);
     }
 
+    public static function getRandomNetwork(layout:Vector<Int>):NN {
+        // calculate number of weights
+        var weights = 0;
+        for (i in 1...layout.length) {
+            weights += layout[i] * layout[i-1];
+        }
+        // initialize vector containing weights
+        var ws:Vector<Float> = new Vector<Float>(weights);
+        for (i in 0...weights) {
+            ws[i] = ((Math.random() > 0.5) ? -1 : 1) * Math.random();
+        }
+        // return new NN
+        return new NN(layout, ws);
+    }
+
     static function main():Void {
-//        var l:Vector<Int> = new Vector(2);
-//        l[0] = 1; l[1] = 1;
-        var v:Vector<Float> = new Vector(2);
+        var l:Vector<Int> = new Vector<Int>(2);
+        l[0] = 2; l[1] = 1;
+        var v:Vector<Float> = new Vector<Float>(2);
         v[0] = 0;
         v[1] = 1;
-        var nn:NN = NN.fromStringRepresentation("NN(2;2;2|4;3;1;8;3;3;2;-1)"); //new NN(l, v);
+        var nn:NN = NN.getRandomNetwork(l); //fromStringRepresentation("NN(2;2;2|4;3;1;8;3;3;2;-1)"); //new NN(l, v);
 //        trace(nn.predict(v));
         trace(nn.getStringRepresentation());
         trace(nn.predict(v));
