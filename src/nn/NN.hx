@@ -41,6 +41,12 @@ class NN {
         this.weights = weights;
     }
 
+    /**
+     * Run a prediction.
+     *
+     * ``features'' The features based on which to run the predictions. The length of the input vector need to equal layout[0].
+     * ``return'' The predicted values in form of an output vector (of size layout[layout.size-1]).
+     */
     public function predict(features:Vector<Float>):Vector<Float> {
         // check that we have enough input
         if (features.length != this.layout[0]) {
@@ -67,10 +73,22 @@ class NN {
         return prev;
     }
 
+    /**
+     * Get a textual representation of the neuronal network.
+     *
+     * ``return'' A textual representation of the neuronal network. The textual representation can be
+     * reconverted into another neuronal network (via the static ``fromStringRepresentation'' function).
+     */
     public function getStringRepresentation():String {
         return "NN(" + this.layout.toArray().join(";") + "|" + this.weights.toArray().join(";") + ")";
     }
 
+    /**
+     * Create a new neuronal network based on a string.
+     *
+     * ``rep'' The textual representation from which to create the neuronal network.
+     * ``return'' A new neuronal network object.
+     */
     public static function fromStringRepresentation(rep:String):NN {
         // chop of beginning "NN(" and ending ")"
         if (! (StringTools.startsWith(rep, "NN(") && StringTools.endsWith(rep, ")"))) {
@@ -100,6 +118,12 @@ class NN {
         return new NN(l, v);
     }
 
+    /**
+     * Create a new neuronal network with random weights.
+     *
+     * ``layout'' The layout of the new neuronal network.
+     * ``return'' The newly created neuronal network with random weights.
+     */
     public static function getRandomNetwork(layout:Vector<Int>):NN {
         // calculate number of weights
         var weights = 0;
@@ -113,6 +137,50 @@ class NN {
         }
         // return new NN
         return new NN(layout, ws);
+    }
+
+    /**
+     * Clone the current neuronal network.
+     *
+     * ``return'' A copy of this neuronal network.
+     */
+    public function clone():NN {
+        return new NN(this.layout.copy(), this.weights.copy());
+    }
+
+    /**
+     * Apply random changes to the current neuronal network.
+     */
+    public function randomlyChange():Void {
+        // get a random position in this.weights
+        var pos:Int = Math.floor(Math.random() * this.weights.length);
+        // randomly change this position
+        this.weights[pos] += ((Math.random() > 0.5) ? 0.1 : -0.1) * Math.random();
+    }
+
+    /**
+     * Combine/Merge two neuronal networks.
+     *
+     * ``o'' The other neuronal network to combine this network with. The layout of the other network need to be the same as the current network.
+     * ``return'' A new neuronal network that 'combines' the weight values of both neuronal networks.
+     */
+    public function mergeNetworks(o:NN):NN {
+        // check the others neuronal network layout
+        if (this.layout.length != o.layout.length) {
+            throw "Both networks need to have the same layout!";
+        }
+        for (i in 0...this.layout.length) {
+            if (this.layout[i] != o.layout[i]) {
+                throw "Both networks need to have the same layout!";
+            }
+        }
+        // create the weights
+        var w:Vector<Float> = new Vector(this.weights.length);
+        for (i in 0...this.weights.length) {
+            w[i] = (this.weights[i] + o.weights[i]) / 2.0;
+        }
+        // return
+        return new NN(this.layout.copy(), w);
     }
 
     static function main():Void {
