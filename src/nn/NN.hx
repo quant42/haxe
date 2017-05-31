@@ -4,6 +4,7 @@
 package nn;
 
 import haxe.ds.Vector;
+import util.Pair;
 
 class NN {
     // The layout of the neuronal network. Only settable via constructor.
@@ -188,6 +189,7 @@ class NN {
      *
      * ``i'' The input of the neuronal network.
      * ``o'' The expected output corresponding to the input.
+     * ``return'' The calculated squared error.
      */
     public function calcErrorSingle(i:Vector<Float>, o:Vector<Float>):Float {
         // check that the length of the output vector equals to the layout[-1]
@@ -206,6 +208,45 @@ class NN {
         }
         // return
         return err;
+    }
+
+    /**
+     * Calculate the squared error of the current neuronal network for multiple examples.
+     *
+     * ``td'' The trainingsData to cacluate the error on.
+     * ``return'' The calculated squared error on the complete dataset.
+     */
+    public function calcError(td:Vector<Pair<Vector<Float>,Vector<Float>>>):Float {
+        var err:Float = 0;
+        for (d in td) {
+            err += this.calcErrorSingle(d.first, d.second);
+        }
+        return err;
+    }
+
+    /**
+     * Train the neuronal network on a dataset.
+     *
+     * ``td'' The trainingsData to train the neuronal network on.
+     */
+    public function trainRandom(td:Vector<Pair<Vector<Float>,Vector<Float>>>):Void {
+        // TODO: implement a better learning algorithm
+        // this one often works, but doing a 'neighborhood' descent will to often stick in a local min.
+        var cErr:Float = calcError(td);
+        for (pos in 0...this.weights.length) {
+//        var pos:Int = Std.int(Math.random() * this.weights.length);
+        var cVal:Float = this.weights[pos];
+        var change = Math.random();
+        for (sign in [0.1, -0.1]) {
+            this.weights[pos] += sign * change;
+            var nErr:Float = calcError(td);
+            if (nErr < cErr) {
+//                return;
+            } else {
+                this.weights[pos] = cVal;#
+            }
+        }
+        }
     }
 
     static function main():Void {
