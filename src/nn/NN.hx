@@ -64,7 +64,7 @@ class NN {
                 for (val in prev) {
                     tmp += weights[z++] * val;
                 }
-                next[j] = tmp;
+                next[j] = tmp; // 1 - 1 / (1 + Math.exp(tmp));
             }
            // prepare next iteration
            prev = next;
@@ -149,11 +149,11 @@ class NN {
     }
 
     /**
-     * Apply random changes to the current neuronal network.
+     * Apply a random change to the current neuronal network.
      */
     public function randomlyChange():Void {
         // get a random position in this.weights
-        var pos:Int = Math.floor(Math.random() * this.weights.length);
+        var pos:Int = Std.int(Math.random() * this.weights.length);
         // randomly change this position
         this.weights[pos] += ((Math.random() > 0.5) ? 0.1 : -0.1) * Math.random();
     }
@@ -181,6 +181,31 @@ class NN {
         }
         // return
         return new NN(this.layout.copy(), w);
+    }
+
+    /**
+     * Calculate the squared error of the current neuronal network for a single example.
+     *
+     * ``i'' The input of the neuronal network.
+     * ``o'' The expected output corresponding to the input.
+     */
+    public function calcErrorSingle(i:Vector<Float>, o:Vector<Float>):Float {
+        // check that the length of the output vector equals to the layout[-1]
+        // the other check that the length of i equals to layout[0] will automatically be checked
+        // by the predict function.
+        if (o.length != this.layout[this.layout.length-1]) {
+            throw "Unexpected ouput vector length!";
+        }
+        // ok, get the prediction of the network
+        var p:Vector<Float> = this.predict(i);
+        // calculate the error
+        var err:Float = 0;
+        for (z in 0...p.length) {
+            var e:Float = p[z] - o[z];
+            err += e * e;
+        }
+        // return
+        return err;
     }
 
     static function main():Void {
