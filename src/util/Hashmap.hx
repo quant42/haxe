@@ -3,10 +3,10 @@ package util;
 import interfaces.Hashable;
 import util.Pair;
 import haxe.ds.Vector;
-//import haxe.ds.List;
+//import List;
 
 @:generic
-class HashMapEntry<K:Hashable,V> {
+private class HashMapEntry<K:Hashable,V> {
     public var key:K = null;
     public var item:V = null;
     public var prev:HashMapEntry<K,V> = null;
@@ -86,6 +86,10 @@ class Hashmap<K:Hashable,V> {
     }
 
     public function changeCapacity(newCapacity:Int):Void {
+        // check new capacity level
+        if (newCapacity < 1) {
+            throw "Capacity needs to be at least 1!";
+        }
         // create a new vector with a higher capacity
         var newData:Vector<List<HashMapEntry<K,V>>> = new Vector<List<HashMapEntry<K,V>>>(newCapacity);
         // copy elements to newData
@@ -108,7 +112,7 @@ class Hashmap<K:Hashable,V> {
         this.data = newData;
     }
 
-    public function put(key:K, item:V):Void {
+    public function put(key:K, item:V):Bool {
         // check if we need to resize ...
         if (this.data.length * this.loadFact <= this.size) {
             changeCapacity(this.data.length << 1);
@@ -123,7 +127,7 @@ class Hashmap<K:Hashable,V> {
                     // found, we just need to overwrite the item
                     ele.item = item;
                     // do not search anymore further ...
-                    return;
+                    return false;
                 }
             }
         } else {
@@ -141,9 +145,10 @@ class Hashmap<K:Hashable,V> {
         this.last = entry;
         this.data[index].add(entry);
         this.size++;
+        return true;
     }
 
-    public function remove(key:K):Void {
+    public function remove(key:K):Bool {
         // get the position in data
         var hC:Int = key.hashCode();
         var index:Int = hC % this.data.length;
@@ -153,12 +158,25 @@ class Hashmap<K:Hashable,V> {
                 if (ele.key.equals(key)) {
                     // found - do not search anymore further ...
                     // ok, we need to remove this entry ...
-                    // TODO - it seems haxe list does not contain a remove by index ... need own list implementation ...
-                    return;
+                    this.size--;
+                    // remove from list of connections
+                    if (ele.prev == null) {
+                        this.first = ele.next;
+                    } else {
+                        ele.prev.next = ele.next;
+                    }
+                    if (ele.next == null) {
+                        this.last = ele.prev;
+                    } else {
+                        ele.next.prev = ele.prev;
+                    }
+                    // remove from hash datastructure
+                    this.data[index].remove(ele);   // TODO - it seems haxe list does not contain a direct remove (speedup) ... maybe need own list implementation ...
+                    return true;
                 }
             }
         }
-        throw "No element with key " + key + " found!";
+        throw false;
     }
 
     public function contains(key:K):Bool {
@@ -168,7 +186,7 @@ class Hashmap<K:Hashable,V> {
         // check if there is already something at the corresponding position ...
         if (this.data[index] != null) {
             for (ele in this.data[index]) {
-                if (ele.key.equals(key)) {
+                if (ele.key.equals(key) || ele.key == key) {
                     // found - do not search anymore further ...
                     return true;
                 }
@@ -177,19 +195,29 @@ class Hashmap<K:Hashable,V> {
         return false;
     }
 
-/*
     public function iterator():Iterator<Pair<K,V>> {
-        return null; // TODO
+        return new HashmapIterator(first);
+    }
+
+//    public static function main():Void {}
+}
+
+@:generic
+private class HashmapIterator<K:Hashable,V> {
+    public var c:HashMapEntry<K,V> = null;
+
+    public function new(c:HashMapEntry<K,V>) {
+        this.c = c;
     }
 
     public function hasNext():Bool {
-        return false; // TODO
+        return c != null;
     }
 
     public function next():Pair<K,V> {
-        return null; // TODO
+        var r:Pair<K,V> = new Pair(c.key, c.item);
+        c = c.next;
+        return r;
     }
-*/
-
-    public static function main():Void {}
 }
+
