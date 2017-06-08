@@ -1,5 +1,5 @@
 /**
- * (A linear) neuronal network implementation.
+ * Neuronal network implementation.
  */
 package nn;
 
@@ -32,7 +32,7 @@ class NN {
         // Check whether the weights correspond to the layout.
         var expectedNrOfWeights = 0;
         for (i in 1...layout.length) {
-            expectedNrOfWeights += layout[i] * layout[i-1];
+            expectedNrOfWeights += layout[i] * (1 + layout[i-1]);
         }
         if (expectedNrOfWeights != weights.length) {
             throw "Number of weights do not correspond to the expected number of weights! (" + expectedNrOfWeights + " != " + weights.length + ")";
@@ -61,11 +61,11 @@ class NN {
             next = new Vector<Float>(this.layout[i]);
             // fill out next vector
             for (j in 0...next.length) {
-                var tmp:Float = 0;
+                var tmp:Float = weights[z++];
                 for (val in prev) {
                     tmp += weights[z++] * val;
                 }
-                next[j] = tmp; // 1 - 1 / (1 + Math.exp(tmp));
+                next[j] = 1 / (1 + Math.exp(-tmp));
             }
            // prepare next iteration
            prev = next;
@@ -129,7 +129,7 @@ class NN {
         // calculate number of weights
         var weights = 0;
         for (i in 1...layout.length) {
-            weights += layout[i] * layout[i-1];
+            weights += layout[i] * (1 + layout[i-1]);
         }
         // initialize vector containing weights
         var ws:Vector<Float> = new Vector<Float>(weights);
@@ -243,7 +243,7 @@ class NN {
             if (nErr < cErr) {
 //                return;
             } else {
-                this.weights[pos] = cVal;#
+                this.weights[pos] = cVal;
             }
         }
         }
