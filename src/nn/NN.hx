@@ -65,7 +65,11 @@ class NN {
                 for (val in prev) {
                     tmp += weights[z++] * val;
                 }
-                next[j] = 1 / (1 + Math.exp(-tmp));
+                if (-tmp > 700) { // prevent math overflow
+                    next[j] = 0;
+                } else {
+                    next[j] = 1 / (1 + Math.exp(-tmp));
+                }
             }
            // prepare next iteration
            prev = next;
