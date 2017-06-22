@@ -1,4 +1,4 @@
-package graph;
+package util;
 
 import util.Hashmap;
 import interfaces.Hashable;
@@ -50,6 +50,11 @@ class Graph<V:Hashable,E:Numeric> {
         addNode(v2);
         // now add the connection between v1 and v2
         return addE(v1, v2, e) && addE(v2, v1, e);
+    }
+
+    public function isConnected(v1:V, v2:V):Bool {
+        // check if v2 is in the neighborhood of v1
+        return this.edges.get(v1).contains(v2);
     }
 
     public static function main():Void {

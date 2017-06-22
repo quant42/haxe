@@ -236,7 +236,7 @@ class Hashmap<K:Hashable,V> {
         // check if there is already something at the corresponding position ...
         if (this.data[index] != null) {
             for (ele in this.data[index]) {
-                if (ele.key.equals(key) || ele.key == key) {
+                if (ele.key.equals(key)) {
                     // found - do not search anymore further ...
                     return true;
                 }
@@ -250,6 +250,25 @@ class Hashmap<K:Hashable,V> {
      */
     public function iterator():Iterator<Pair<K,V>> {
         return new HashmapIterator(first);
+    }
+
+    /**
+     * Get the stored item for a key. If no such key exists, null will be returned!
+     */
+    public function get(key:K):V {
+        // get the position in data
+        var hC:Int = key.hashCode();
+        var index:Int = hC % this.data.length;
+        // check if there is already something at the corresponding position ...
+        if (this.data[index] != null) {
+            for (ele in this.data[index]) {
+                if (ele.key.equals(key)) {
+                    // found - do not search anymore further ...
+                    return ele.item;
+                }
+            }
+        }
+        return null;        
     }
 
 //    public static function main():Void {}
