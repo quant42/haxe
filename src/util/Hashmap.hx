@@ -19,7 +19,7 @@ private class HashMapEntry<K:Hashable,V> {
         this.prev = prev;
         this.next = next;
     }
-    public function get(i:Int):HashMapEntry<K,V> {
+    public inline function get(i:Int):HashMapEntry<K,V> {
         if (i == 0) {
             return this;
         }
@@ -42,8 +42,8 @@ class Hashmap<K:Hashable,V> {
     // HashMap implementation
     private var data:Vector<LList<HashMapEntry<K,V>>> = null;
     // for faster iteration
-    private var first:HashMapEntry<K,V> = null;
-    private var last:HashMapEntry<K,V> = null;
+    public var first(default, null):HashMapEntry<K,V> = null;
+    public var last(default, null):HashMapEntry<K,V> = null;
     
     /**
      * Create a new hashmap.
@@ -70,14 +70,14 @@ class Hashmap<K:Hashable,V> {
     /**
      * Returns whether there are objects stored in the hashmap.
      */
-    public function isEmpty():Bool {
+    public inline function isEmpty():Bool {
         return size == 0;
     }
 
     /**
      * Remove all elements from the hasmap.
      */
-    public function clear():Void {
+    public inline function clear():Void {
         this.size = 0;
         this.data = new Vector<LList<HashMapEntry<K,V>>>(this.data.length);
         this.first = null;
@@ -105,7 +105,7 @@ class Hashmap<K:Hashable,V> {
      *
      * @param newCapacity The new capacity of this hashmap.
      */
-    public function changeCapacity(newCapacity:Int):Void {
+    public inline function changeCapacity(newCapacity:Int):Void {
         // check new capacity level
         if (newCapacity < 1) {
             throw "Capacity needs to be at least 1!";
@@ -278,15 +278,15 @@ class Hashmap<K:Hashable,V> {
 private class HashmapIterator<K:Hashable,V> {
     public var c:HashMapEntry<K,V> = null;
 
-    public function new(c:HashMapEntry<K,V>) {
+    public inline function new(c:HashMapEntry<K,V>) {
         this.c = c;
     }
 
-    public function hasNext():Bool {
+    public inline function hasNext():Bool {
         return c != null;
     }
 
-    public function next():Pair<K,V> {
+    public inline function next():Pair<K,V> {
         var r:Pair<K,V> = new Pair(c.key, c.item);
         c = c.next;
         return r;
@@ -305,7 +305,7 @@ private class LList<T> {
     public inline function new() {}
 
     // add an element to the end of this list.
-    public function add(item:T) {
+    public inline function add(item:T) {
         var e : LListNode<T> = new LListNode<T>(item);
         if(head == null) {
             head = e;

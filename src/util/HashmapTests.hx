@@ -85,6 +85,12 @@ class HashmapTests extends TestCase {
             assertEquals(e.first.i + 10, e.second);
         }
         assertEquals(1000, nr);
+        assertEquals(hm.contains(new Obj1(101)), true);
+        assertEquals(hm.contains(new Obj1(1001)), false);
+        hm.clear();
+        assertEquals(hm.contains(new Obj1(101)), false);
+        assertEquals(hm.contains(new Obj1(1001)), false);
+        assertEquals(0, hm.size);
     }
 
     public static function main():Void {
