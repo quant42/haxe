@@ -4,6 +4,33 @@ import util.Hashmap;
 import interfaces.Hashable;
 import interfaces.Numeric;
 
+private class IPair implements Hashable {
+    public var i:Int;
+    public var j:Int;
+    public var l:Int;
+    public inline function new(i:Int, j:Int) {
+        if (i > j) {
+            this.i = j;
+            this.j = i;
+        } else {
+            this.i = i;
+            this.j = j;
+        }
+        this.l = j;
+    }
+    public inline function hashCode():Int {
+        return this.i + this.j * 5;
+    }
+    public inline function equals(o:Hashable):Bool {
+        try {
+            var o:IPair = cast(o, IPair);
+            return o.i == this.i && o.j == this.j;
+        } catch(e:Dynamic) {
+            return false;
+        }
+    }
+}
+
 @:generic
 class Graph<V:Hashable,E:Numeric> {
     // The nodes of the graph datastructure
@@ -107,9 +134,63 @@ class Graph<V:Hashable,E:Numeric> {
         return visited.size == nodes.size;
     }
 
-    public function getEdgesOfSubnetwork(v1:V, v2:V):List<E> {
-        // get all edges connecting v1 and v2.
-        return null; // TODO
+    public inline function degreeOf(v:V) {
+        return this.edges.get(v).size;
+    }
+
+    public inline function removeNode(v:V) {
+        this.nodes.remove(v);
+        for(u in this.edges.get(v)) {
+            this.edges.get(u.first).remove(v);
+        }
+        this.edges.remove(v);
+    }
+
+    public inline function removeEdge(v1:V, v2:V) {
+        this.edges.get(v1).remove(v2);
+        this.edges.get(v2).remove(v1);
+    }
+
+    public function getEdgesOfConnectedComponent(v1:V):Hashmap<E,Bool> {
+        // get all edges of the connected component from v1
+        var result:Hashmap<E,Bool> = new Hashmap<E,Bool>();
+        var current:List<V> = new List<V>();
+        var visited:List<V> = new Hashmap<V,Bool>();
+        // TODO
+        current.add(v1);
+        visited.put(v1, true);
+        // construct the beginning of the path
+        var v1Id = nodes.get(v1);
+        for(kvp in this.edges.get(v1)) {
+            var hm:Hashmap<IPair, E> = new Hashmap<IPair, E>();
+            var ipair:IPair = new IPair(v1Id, nodes.get(kvp.first));
+            hm.put(ipair, kvp.second);
+            pathLst.add(hm);
+        }
+        // ok, extend each extendable paths (as long as not v2 gets reached)
+        var v2Id = nodes.get(v2);
+        while(!pathLst.isEmpty()) {
+            var newPathLst:List<Hashmap<IPair, E>> = new List<Hashmap<IPair, E>>();
+            for(path in pathLst) {
+                // check if we reached v2 in the last step
+                if (path.last.key.l == v2Id) {
+                    // v2 reached, save E's
+                    for(kvp in path) {
+                        if(result == null || result.getValue() > kvp.second.getValue()) {
+                            result = kvp.second;
+                        }
+                    }
+                } else {
+                    // no we did not reach v2 ...
+                    // how many outgoing edges (that we are allowed to go) do we have?
+                    
+                    // ok, extend pathLst
+ // TODO
+                }
+            }
+            pathLst = newPathLst;
+        }
+        return result;
     }
 
     public static function main():Void {
