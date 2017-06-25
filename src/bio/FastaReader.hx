@@ -4,7 +4,7 @@ import util.Pair;
 import util.Hashmap;
 import interfaces.Hashable;
 
-private class HString implements Hashable {
+class HString implements Hashable {
     public var s:String;
     public inline function new(s:String) {
         this.s = s;
