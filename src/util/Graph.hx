@@ -151,44 +151,25 @@ class Graph<V:Hashable,E:Numeric> {
         this.edges.get(v2).remove(v1);
     }
 
-    public function getEdgesOfConnectedComponent(v1:V):Hashmap<E,Bool> {
-        // get all edges of the connected component from v1
-        var result:Hashmap<E,Bool> = new Hashmap<E,Bool>();
-        var current:List<V> = new List<V>();
-        var visited:List<V> = new Hashmap<V,Bool>();
-        // TODO
-        current.add(v1);
+    public function getLowestEdgeInConnectedComponent(v1:V):E {
+        var result:E = null;
+        var visited:Hashmap<V,Bool> = new Hashmap<V,Bool>();
+        var l:List<V> = new List<V>();
+        l.push(v1);
         visited.put(v1, true);
-        // construct the beginning of the path
-        var v1Id = nodes.get(v1);
-        for(kvp in this.edges.get(v1)) {
-            var hm:Hashmap<IPair, E> = new Hashmap<IPair, E>();
-            var ipair:IPair = new IPair(v1Id, nodes.get(kvp.first));
-            hm.put(ipair, kvp.second);
-            pathLst.add(hm);
-        }
-        // ok, extend each extendable paths (as long as not v2 gets reached)
-        var v2Id = nodes.get(v2);
-        while(!pathLst.isEmpty()) {
-            var newPathLst:List<Hashmap<IPair, E>> = new List<Hashmap<IPair, E>>();
-            for(path in pathLst) {
-                // check if we reached v2 in the last step
-                if (path.last.key.l == v2Id) {
-                    // v2 reached, save E's
-                    for(kvp in path) {
-                        if(result == null || result.getValue() > kvp.second.getValue()) {
-                            result = kvp.second;
-                        }
-                    }
-                } else {
-                    // no we did not reach v2 ...
-                    // how many outgoing edges (that we are allowed to go) do we have?
-                    
-                    // ok, extend pathLst
- // TODO
+        while(!l.isEmpty()) {
+            var v:V = l.pop();
+            for (keyValEle in this.edges.get(v)) {
+                var newV:V = keyValEle.first;
+                var newE:E = keyValEle.second;
+                if(result == null || newE.getValue() < result.getValue()) {
+                    result = newE;
+                }
+                if(!visited.contains(newV)) {
+                    l.push(newV);
+                    visited.put(newV, true);
                 }
             }
-            pathLst = newPathLst;
         }
         return result;
     }

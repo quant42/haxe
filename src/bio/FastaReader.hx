@@ -1,14 +1,38 @@
 package bio;
 
 import util.Pair;
+import util.Hashmap;
+import interfaces.Hashable;
+
+private class HString implements Hashable {
+    public var s:String;
+    public inline function new(s:String) {
+        this.s = s;
+    }
+    public inline function hashCode():Int {
+        var result:Int = 0;
+        var mult:Int = 1;
+        for(i in 0...this.s.length) {
+            result += mult * this.s.charCodeAt(i);
+            mult += 2;
+        }
+        return result;
+    }
+    public inline function equals(o:Hashable) {
+        try {
+            var o:HString = cast(o, HString);
+            return this.s == o.s;
+        } catch(e:Dynamic) {
+            return false;
+        }
+    }
+}
 
 class FastaReader {
      // the read fasta sequences
      public var faSeqs:List<Pair<String,String>> = new List<Pair<String,String>>();
 
-     // allow the creating of such an object
-     public inline function new() {}
-
+     // some helper functions
      private static inline function isWhitespace(s:String, pos:Int):Bool {
          var cCode:Int = s.charCodeAt(pos);
          var result:Bool = false;
@@ -42,7 +66,8 @@ class FastaReader {
          return stripStringBegin(stripStringEnd(s));
      }
 
-     public function parse(fileContent:String):Void {
+     // allow the creating of such an object
+     public function new(fileContent:String) {
          var lines:Array<String> = fileContent.split("\n");
          var header:String = null;
          var content:String = null;
@@ -80,6 +105,23 @@ class FastaReader {
              }
              faSeqs.add(new Pair(header, content));
          }
+     }
+
+     public function getReduce():Hashmap<HString,List<String>> {
+         var result = new Hashmap<HString,List<String>>();
+         for(seq in faSeqs) {
+             var header:String = seq.first;
+             var seq:HString = new HString(seq.second);
+             if(result.contains(seq)) {
+                 var l:List<String> = result.get(seq);
+                 l.add(header);
+             } else {
+                 var l:List<String> = new List<String>();
+                 l.add(header);
+                 result.put(seq, l);
+             }
+         }
+         return result;
      }
 
      public static function main():Void {}
