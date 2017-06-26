@@ -174,7 +174,7 @@ class Graph<V:Hashable,E:Numeric> {
         return result;
     }
 
-    public static function main():Void {
+/*    public static function main():Void {
         trace("Hello World!"); // TODO: replace by tests
-    }
+    }*/
 }
