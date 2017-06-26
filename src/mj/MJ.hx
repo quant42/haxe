@@ -53,10 +53,12 @@ class MJ {
             return b.names.length - a.names.length;
         });
         // calculate reduced seq
+        ipos = new List<Int>();
         for(pos in 0...seqL) {
             for(j in 1...sampled.length) {
                 if(sampled[j].originalSeq.charCodeAt(pos) != sampled[0].originalSeq.charCodeAt(pos)) {
                     ipos.add(pos);
+                    break;
                 }
             }
         }
@@ -128,6 +130,7 @@ class MJ {
         for(s in presult) {
             result.add(s.join(""));
         }
+trace(s1,s2,s3,result);
         return result;
     }
 
@@ -143,7 +146,7 @@ class MJ {
             allV[i++] = e;
         }
         // calculate deltas on allV
-        deltas = new Vector<Pair<Pair<Int,Int>,Float>>(allV.length * (allV.length+1));
+        deltas = new Vector<Pair<Pair<Int,Int>,Float>>(((allV.length-1) * (allV.length)) >> 1);
         var iii:Int = 0;
         for(i in 0...allV.length) {
             for(j in (i+1)...allV.length) {
@@ -210,7 +213,8 @@ class MJ {
     }
 
     public inline function step4(epsilon:Float):Int {
-        var added:Hashmap<Seq,Bool> = new Hashmap<Seq,Bool>();
+        var added:Hashmap<Seq,Float> = new Hashmap<Seq,Float>();
+        var minCosts:Float = Math.POSITIVE_INFINITY;
         for(kvp1 in graph.nodes) {
             for(kvp2 in graph.edges.get(kvp1.first)) { // kvp2 is pair of Node=Seq Edge=FloatEdge
                 var kvp2Id:Int = graph.nodes.get(kvp2.first);
@@ -219,32 +223,35 @@ class MJ {
                     var s2:String = kvp2.first.reducedSeq;
                     for(s in allV) {
                         var s3Id:Int = graph.nodes.get(s);
-                        if(s3Id != kvp1.second && s3Id != kvp2Id) {
+                        if(s3Id != kvp1.second && s3Id != kvp2Id &&
+                                (graph.areNeighbours(s, kvp1.first) || graph.areNeighbours(s, kvp2.first))) { // TODO there's a speedup for this ...
                             var s3:String = s.reducedSeq;
                             var l:List<String> = constructMedians(s1, s2, s3);
-                            var lambdaEps:Float = distStr(s1, s2) + distStr(s1, s3) + distStr(s2, s3) +
-epsilon - Math.max(distStr(s1, s2), Math.max(distStr(s1, s3), distStr(s2, s3)));
+                            var lambdaEps:Float = distStr(s1, s2) + Math.min(distStr(s1, s3), distStr(s2, s3));
+trace(s1, s2, s3, lambdaEps);
                             for(stre in l) {
-                                // costs for this median vector?
-                                if(distStr(stre, s1) + distStr(stre, s2) + distStr(stre, s3) >= lambdaEps) { // connection cost exceed lambda + epsilon
-                                    continue;
-                                }
                                 // is present in list?
                                 var nS:Seq = new Seq(null, new List<String>(), stre);
                                 if(added.contains(nS) || graph.nodes.contains(nS)) {
                                     continue;
                                 }
-                                added.put(nS, true);
+                                var costs:Float = distStr(s1, stre) + distStr(s2, stre) + distStr(s3, stre);
+                                added.put(nS, costs);
+                                minCosts = Math.min(costs, minCosts);
                             }
                         }
                     }
                 }
             }
         }
+        var addedMedians:Int = 0;
         for(kvp in added) {
-            medianVectors.add(kvp.first);
+            if(kvp.second <= minCosts + epsilon) {
+                addedMedians++;
+                medianVectors.add(kvp.first);
+            }
         }
-        return added.size;
+        return addedMedians;
     }
 
     public inline function step5() {
@@ -269,18 +276,43 @@ epsilon - Math.max(distStr(s1, s2), Math.max(distStr(s1, s3), distStr(s2, s3)));
             this.rweights[iii++] = weights[e];
         }
         // perform algo
+        var i:Int = 0;
         do {
             step1();
             step2(epsilon);
-            if(step3() != 0) {
+            i = step3();
+trace("3 " + i);
+            if(i != 0) {
                 continue;
             }
-            if(step4(epsilon) != 0) {
+            i = step4(epsilon);
+trace("4 " + i);
+            if(i != 0) {
                 continue;
+            } else {
+                break;
             }
         } while(true);
+trace("5 s");
         step5();
+trace("5 e");
+//TODO add "originalSeq" to median vectors for output
     }
 
-    public static function main():Void {}
+    public static function main():Void {
+/*
+*/
+        var fr:FastaReader = new FastaReader(">A\n00000\n>B\n11000\n>C\n10110\n>D\n01101");
+        var mj:MJ = new MJ(fr.getReduce());
+        var v:Vector<Float> = new Vector<Float>(5);
+        v[0] = 1.0;
+        v[1] = 3.0;
+        v[2] = 2.0;
+        v[3] = 1.0;
+        v[4] = 2.0;
+        mj.runMJ(v, 2.0);
+        for(e in mj.graph.nodes) {
+            trace(e.first.names + " " + e.first.originalSeq + " " + e.first.reducedSeq);
+        }
+    }
 }
