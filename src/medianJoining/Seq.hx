@@ -66,4 +66,7 @@ class Seq {
         }
         this.originalSequence = s.join("");
     }
+    public inline function getMuts(c:Seq):List<Int> {
+        return new List<Int>(); // TODO
+    }
 }

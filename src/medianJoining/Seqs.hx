@@ -4,13 +4,11 @@ import util.Pair;
 import haxe.ds.Vector;
 import haxe.ds.HashMap;
 import haxe.ds.ListSort;
-
-interface Printer {
-    public function printString(s:String):Void;
-    public function close():Void;
-}
+import interfaces.Printer;
 
 class Seqs {
+    public var version:String = "1.0.1";
+
     public var first:Seq; // "setting"
     public var firstMed:Seq;
     public var end:Seq;
@@ -28,8 +26,10 @@ class Seqs {
 
     public var newLine:String = "\n"; // setting
     public var indent:String = "  "; // setting
+    public var countingOffset:Int = 1;  // setting
 
     public var distIUPACCode:Bool = false; // setting
+    public var lowerUpperCaseDoNotDiffer:Bool = false; // TODO setting
 
     public inline function new() {
         #if (debug || debugMJ || debugMJConstructor)
@@ -112,21 +112,14 @@ class Seqs {
         }
         return result;
     }
+    public inline function diffChr(s1:String,s2:String):Bool {
+        return (distIUPACCode) ? (((chrToInt(s1) & chrToInt(s2))) == 0): s1 != s2;
+    }
     public inline function distStr(s1:String,s2:String):Float {
         var result:Float = 0.0;
-        if(!distIUPACCode) {
-            for(pos in 0...s1.length) {
-                if(s1.charAt(pos) != s2.charAt(pos)){
-                    result += rweights[pos];
-                }
-            }
-        } else {
-            for(pos in 0...s1.length) {
-                var c1:Int = chrToInt(s1.charAt(pos));
-                var c2:Int = chrToInt(s2.charAt(pos));
-                if((c1 & c2) == 0){
-                    result += rweights[pos];
-                }
+        for(pos in 0...s1.length) {
+            if(diffChr(s1.charAt(pos), s2.charAt(pos))) {
+                result += rweights[pos];
             }
         }
         return result;
@@ -258,7 +251,7 @@ class Seqs {
         var toAdd:List<Delta> = new List<Delta>();
         for(deltas in rdeltas) {
             #if (debug || debugMJ || debugMJStep2)
-            trace("Processing dists for epsilon: " + deltas.first().dist);
+            trace("Processing dists for delta: " + deltas.first().dist);
             #end
             toAdd.clear();
             // check which ones to add
@@ -397,7 +390,8 @@ class Seqs {
             }
             var pp:Int = 0;
             for(ele in presult) {
-                var c:String = (pp < limit) ? s1.charAt(pos) : (((pp << 1) < limit) ? s2.charAt(pos) : s3.charAt(pos));
+                var c:String = (pp < limit) ? s1.charAt(pos) :
+                    ((pp < (limit << 1)) ? s2.charAt(pos) : s3.charAt(pos));
                 ele[pos] = c;
                 pp++;
             }
@@ -423,14 +417,14 @@ class Seqs {
         var seqToAdd:List<Pair<String, Float>> = new List<Pair<String, Float>>();
         var s1:Seq = first;
         var lambda:Float = Math.POSITIVE_INFINITY;
-        while(s1 != null) {
+        while(s1 != null) { // s1 is in the middle
             for(s2p in s1.connectedTo) {
                 var s2:Seq = s2p.first;
 //                if(s1 == s2) { continue; } // not possible
-                for(s3p in s2.connectedTo) {
+                for(s3p in s1.connectedTo) {
 //                    if(s2 == s3) { continue; } // not possible
                     var s3:Seq = s3p.first;
-                    if(s1 == s3) {
+                    if(s2 == s3) {
                         continue;
                     }
                     #if (debug || debugMJ || debugMJStep4)
@@ -574,9 +568,13 @@ class Seqs {
         #end
         #if (debug || debugMJ)
         trace("{MJ}.runMJ(" + epsilon + ")");
+        var round:Int = 0;
         #end
         var iii:Int = 0;
         do {
+            #if (debug || debugMJ)
+            trace("{MJ}.runMJ(...)->round:" + (round++));
+            #end
             step1();
             step2(epsilon);
             iii = step3();
@@ -646,12 +644,15 @@ class Seqs {
             current = current.next;
         }
     }
-    private inline function getSeqId(s:String):String {
+    public inline function getSeqIdentifier(s:String):String {
+        if(s == null) {
+            return null;
+        }
         var pos:Int = s.lastIndexOf("_");
         if(pos == -1) {
             return s;
         }
-        return s.substr(0, pos);
+        return s.substr(0, pos+1);
     }
     private inline function countConnections(c1:Seq,c2:Seq):Int {
         var result:Int = 0;
@@ -659,9 +660,9 @@ class Seqs {
             result = 0;
         } else {
             for(s1 in c1.names) {
-                var seqId1:String = getSeqId(s1);
+                var seqId1:String = getSeqIdentifier(s1);
                 for(s2 in c2.names) {
-                    var seqId2:String = getSeqId(s2);
+                    var seqId2:String = getSeqIdentifier(s2);
                     if(seqId1 == seqId2) {
                         result++;
                         break; // next name
@@ -686,31 +687,91 @@ class Seqs {
 
     public inline function printTxt(printer:Printer):Void {
         // print out all nodes
+        printer.printString("#Calculated via HaplowebMaker version ");
+        printer.printString(version);
+        printer.printString(newLine);
         var c:Seq = first;
         while(c != null) {
-            // TODO
+            // output what this is
+            printer.printString(((c.isSample) ? "SAMPLED_SEQUENCE" : "MEDIAN_VECTOR"));
             printer.printString(newLine);
+            // node id
             printer.printString(indent);
+            printer.printString("ID ");
+            printer.printString("" + c.id);
+            printer.printString(newLine);
+            // species id
+            printer.printString(indent);
+            printer.printString("SPECIES_ID ");
+            printer.printString("" + c.speciesId);
+            printer.printString(newLine);
+            // seq
+            printer.printString(indent);
+            printer.printString("SEQUENCE ");
+            printer.printString("" + c.originalSequence);
+            printer.printString(newLine);
+            if(c.names != null && c.names.length > 0) {
+                // length of names
+                printer.printString(indent);
+                printer.printString("No_NAMES ");
+                printer.printString("" + c.names.length);
+                printer.printString(newLine);
+                // names
+                printer.printString(indent);
+                printer.printString("NAMES");
+                printer.printString(newLine);
+                for(name in c.names) {
+                    printer.printString(indent);
+                    printer.printString(indent);
+                    printer.printString(name);
+                    printer.printString(newLine);
+                }
+            }
+            // connections
+            if(c.connectedTo != null && c.connectedTo.length > 0) {
+                printer.printString(indent);
+                printer.printString("CONNECTED_TO ");
+                printer.printString(newLine);
+                for(con in c.connectedTo) {
+                    printer.printString(indent);
+                    printer.printString(indent);
+                    printer.printString("ID " + con.first.id);
+                    printer.printString(" COSTS " + con.second + " @");
+                    for(pos in 0...c.originalSequence.length) {
+                        if(diffChr(c.originalSequence.charAt(pos), con.first.originalSequence.charAt(pos))) {
+                            printer.printString(" " + (pos + countingOffset));
+                        }
+                    }
+                    printer.printString(newLine); 
+                }
+            }
+            // links
+            if(c.links != null && c.links.length > 0) {
+                printer.printString(indent);
+                printer.printString("LINKED_TO ");
+                printer.printString(newLine);
+                for(link in c.links) {
+                    printer.printString(indent);
+                    printer.printString(indent);
+                    printer.printString("ID " + link.first.id + " COUNT " + link.second);
+                    printer.printString(newLine);
+                }
+            }
+            // next c
             c = c.next;
         }
         printer.close();
     }
-    public inline function printJson(printer:Printer):Void {
-        // TODO
-    }
 
     public static inline function main():Void {
+/*
         var s:Seqs = new Seqs();
-        s.weights = new Vector<Float>(9);
-        s.weights[0] = 999;
-        s.weights[1] = 1;
-        s.weights[2] = 3;
-        s.weights[3] = 88;
-        s.weights[4] = 77;
-        s.weights[5] = 2;
-        s.weights[6] = 1;
-        s.weights[7] = 2;
-        s.weights[8] = 66;
+        s.weights = new Vector<Float>(5);
+        s.weights[0] = 1;
+        s.weights[1] = 3;
+        s.weights[2] = 2;
+        s.weights[3] = 1;
+        s.weights[4] = 2;
 //        s.distIUPACCode = true;
 var namesList1:List<String> = new List<String>();
 namesList1.add("foo_A");
@@ -718,11 +779,14 @@ namesList1.add("bar");
 var namesList2:List<String> = new List<String>();
 namesList2.add("foo_B");
 // add Sample should be called in range of size
-        s.addSample(null,       "A00XY000Z");
-        s.addSample(namesList1, "A11XY000Z");
-        s.addSample(null,       "A10XY110Z");
-        s.addSample(namesList2, "A01XY101Z");
-        s.runMJ(4);
-        s.debug();
+        s.addSample(null,       "00000");
+        s.addSample(namesList1, "11000");
+        s.addSample(null,       "10110");
+        s.addSample(namesList2, "01101");
+        s.runMJ(0);
+        var p:StdOutPrinter = new StdOutPrinter();
+        s.printTxt(p);
+//        s.debug();
+*/
     }
 }
