@@ -1,36 +1,48 @@
 package medianJoining;
 
 import haxe.ds.Vector;
+import util.Pair;
 
 class Seq {
     public var originalSequence:String;
     public var names:List<String>;
     public var isSample:Bool;
 
+    public var reducedSequence:String;
+
     public var next:Seq;
     public var prev:Seq;
 
-    public var reducedSequence:String;
+    public var connectedTo:List<Pair<Seq,Float>>;
 
-    public var deltas:List<Delta>;
+    public var visitedId:Int;
 
-    public var connectedTo:List<Seq>;
+    public var id:Int;
+
+    public var links:List<Pair<Seq,Int>>;
+    public var speciesId:Int;
 
     public inline function new() {
         this.names = new List<String>();
-        this.deltas = new List<Delta>();
-        this.connectedTo = new List<Seq>();
+        this.connectedTo = new List<Pair<Seq,Float>>();
+        this.links = new List<Pair<Seq,Int>>();
+        this.speciesId = 0; // 0 means not assigned
+        this.visitedId = 0; // 0 means not visited
     }
 
-    public static inline function createSample(names:List<String>, seq:String):Seq {
+    public static inline function createSample(id:Int,names:List<String>, seq:String):Seq {
         var result:Seq = new Seq();
+        result.id = id;
         result.names = names;
         result.originalSequence = seq;
+        result.isSample = true;
         return result;
     }
-    public static inline function createMedian(seq:String):Seq {
+    public static inline function createMedian(id:Int,seq:String):Seq {
         var result:Seq = new Seq();
+        result.id = id;
         result.reducedSequence = seq;
+        result.isSample = false;
         return result;
     }
 
@@ -41,5 +53,17 @@ class Seq {
             a[i++] = this.originalSequence.charAt(pos);
         }
         this.reducedSequence = a.join("");
+    }
+
+    public inline function removeConnections():Void {
+        connectedTo.clear();
+    }
+
+    public inline function constructSeq(s:Vector<String>,ipos:List<Int>):Void {
+        var i:Int = 0;
+        for(pos in ipos) {
+            s[pos] = this.reducedSequence.charAt(i++);
+        }
+        this.originalSequence = s.join("");
     }
 }
