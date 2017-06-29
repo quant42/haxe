@@ -96,6 +96,24 @@ class SeqsTests extends TestCase {
         assertEquals("_", s.getSeqIdentifier("_1"));
         assertEquals("_a_b_c_d_", s.getSeqIdentifier("_a_b_c_d_X"));
 //step1,step2,step3,step4,runMJ
+        var v:Vector<Float> = new Vector<Float>(5);
+        v[0] = 1; v[1] = 3; v[2] = 2; v[3] = 1; v[4] = 2;
+        var s2:Seqs = new Seqs();
+        s2.weights = v;
+        s2.addSample(null, "00000");
+        s2.addSample(null, "11000");
+        s2.addSample(null, "10110");
+        s2.addSample(null, "01101");
+        s2.runMJ(0);
+        assertEquals(5,s2.length); // TODO further test the resulting network
+        var s2:Seqs = new Seqs();
+        s2.weights = v;
+        s2.addSample(null, "00000");
+        s2.addSample(null, "11000");
+        s2.addSample(null, "10110");
+        s2.addSample(null, "01101");
+        s2.runMJ(1);
+        assertEquals(6,s2.length); // TODO further test the resulting network
     }
 
     public static function main():Void {

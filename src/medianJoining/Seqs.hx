@@ -1,5 +1,10 @@
 package medianJoining;
 
+// compiler flags:
+// -D debug    Add debugging messages.
+// -D asserts  Add assertions.
+// -D timeInfo Add time usage informations (only available for cpp, cs, java, macro, neko, php and python).
+
 import util.Pair;
 import haxe.ds.Vector;
 import haxe.ds.HashMap;
@@ -8,6 +13,10 @@ import interfaces.Printer;
 
 class Seqs {
     public var version:String = "1.0.1";
+
+    #if (timeInfo && (cpp || cs || java || macro || neko || php || python))
+    public var timestamp:Float;
+    #end
 
     public var first:Seq; // "setting"
     public var firstMed:Seq;
@@ -28,8 +37,8 @@ class Seqs {
     public var indent:String = "  "; // setting
     public var countingOffset:Int = 1;  // setting
 
-    public var distIUPACCode:Bool = false; // setting
-    public var lowerUpperCaseDoNotDiffer:Bool = false; // TODO setting
+    public var distIUPACCode:Bool = false; // hidden setting - need to be better tested - TODO
+    public var lowerUpperCaseDoNotDiffer:Bool = false; // hidden setting - need to be better tested - TODO
 
     public inline function new() {
         #if (debug || debugMJ || debugMJConstructor)
@@ -46,6 +55,9 @@ class Seqs {
         #if (debug || debugMJ || debugMJAddSample)
         trace("{MJ}.addSample(" + ((names == null) ? "null" : names.toString()) + "," + seq + ")");
         #end
+        if(lowerUpperCaseDoNotDiffer) {
+            seq = seq.toUpperCase();
+        }
         var s:Seq = Seq.createSample(nextSeqId++, names, seq);
         if(first == null) {
             first = s;
@@ -107,7 +119,7 @@ class Seqs {
             result = 14;
         } else if(s == "N") { // TGCA
             result = 15;
-        }else {
+        } else {
             throw "Unexpected character \'" + s + "\'!";
         }
         return result;
@@ -122,12 +134,57 @@ class Seqs {
                 result += rweights[pos];
             }
         }
+        #if asserts
+        if(result < 0) throw "WTF? negative distance?";
+        #end
         return result;
     }
 
     public inline function step1():Void {
         #if (debug || debugMJ || debugMJStep1)
         trace("{MJ}.step1()");
+        #end
+        #if (timeInfo && (cpp || cs || java || macro || neko || php || python))
+        timestamp = Sys.time();
+        #end
+        #if asserts
+        var count:Int = 0;
+        var current:Seq = first;
+        if(ipos.length != rweights.length) {
+            throw "ipos and rweights length differ! (" + ipos.length + ", " + rweights.length + ")";
+        }
+        while(current != null) {
+            count++;
+            if(current.reducedSequence.length != rweights.length) {
+                throw "reduced sequence and rweights differ! (" + current.reducedSequence.length + ", " + rweights.length + ")!";
+            }
+            var current2:Seq = current.next;
+            if(current == first && current.prev != null) {
+                throw "First reference not fine!";
+            }
+            if(current == end && current.next != null) {
+                throw "End reference not fine!";
+            }
+            if(current == firstMed && (!current.prev.isSample || current.isSample)) {
+                throw "FirstMed reference not fine!";
+            }
+            while(current2 != null) {
+                if(current.id == current2.id) {
+                    throw "Same ID should not be possible!!!";
+                }
+                if(current.reducedSequence == current2.reducedSequence) {
+                    throw "Same reduced sequence should not be possible!!!";
+                }
+                if(!current.isSample && current2.isSample) {
+                    throw "How can a median vector follow a sample?";
+                }
+                current2 = current2.next;
+            }
+            current = current.next;
+        }
+        if(count != length) {
+            throw "Length and count differ! (" + length + ", " + count + ")";
+        }
         #end
         deltas.clear();
         var s1:Seq = first;
@@ -147,6 +204,9 @@ class Seqs {
         for(d in deltas) {
             trace(d.s1.reducedSequence,d.s2.reducedSequence,d.dist);
         }
+        #end
+        #if asserts
+        if(deltas.length != (length * (length - 1) / 2)) throw "Number of deltas " + deltas.length + " differ in comparison to nr of sequences " + length;
         #end
         // sort the delta list (this is in principal the idea of merge sort ... iteratively implemented)
         var sortedLists:List<List<Delta>> = new List<List<Delta>>();
@@ -203,7 +263,7 @@ class Seqs {
         #end
         // create delta list
         rdeltas.clear();
-        var lastDeltaValue:Float = 0.0;
+        var lastDeltaValue:Float = -1.0;
         var c:List<Delta> = null;
         for(delta in deltas) {
             if(lastDeltaValue != delta.dist) {
@@ -233,11 +293,35 @@ class Seqs {
             trace("---");
         }
         #end
+        #if asserts
+        var count:Int = 0;
+        var lastV:Float = -1.0;
+        for(deltas in rdeltas) {
+            if(lastV >= deltas.first().dist) {
+                throw "Prev delta list >= Current delta list";
+            }
+            lastV = deltas.first().dist;
+            for(delta in deltas) {
+                if(delta.dist != deltas.first().dist) {
+                    throw "Current delta list should only contain deltas of same value!";
+                }
+                count++;
+            }
+        }
+        if(count != (length * (length - 1) / 2))
+            throw "Counted deltas " + deltas.length + " differ in comparison to nr of sequences " + length;
+        #end
+        #if (timeInfo && (cpp || cs || java || macro || neko || php || python))
+        trace("Time usage of step1:",(Sys.time() - timestamp));
+        #end
     }
 
     public inline function step2(epsilon:Float):Void {
         #if (debug || debugMJ || debugMJStep2)
         trace("{MJ}.step2(" + epsilon + ")");
+        #end
+        #if (timeInfo && (cpp || cs || java || macro || neko || php || python))
+        timestamp = Sys.time();
         #end
         // remove maybe previous existing connections
         var current:Seq = first;
@@ -293,11 +377,17 @@ class Seqs {
                 #end
             }
         }
+        #if (timeInfo && (cpp || cs || java || macro || neko || php || python))
+        trace("Time usage of step2:",(Sys.time() - timestamp));
+        #end
     }
 
     public inline function step3():Int {
         #if (debug || debugMJ || debugMJStep3)
         trace("{MJ}.step3()");
+        #end
+        #if (timeInfo && (cpp || cs || java || macro || neko || php || python))
+        timestamp = Sys.time();
         #end
         var nrRem:Int = 0;
         var current:Seq = this.firstMed;
@@ -347,6 +437,9 @@ class Seqs {
         }
         trace("LENGHT:", length);
         trace("RESULT:", nrRem);
+        #end
+        #if (timeInfo && (cpp || cs || java || macro || neko || php || python))
+        trace("Time usage of step3:",(Sys.time() - timestamp));
         #end
         return nrRem;
     }
@@ -411,8 +504,14 @@ class Seqs {
     }
 
     public inline function step4(epsilon:Float):Int {
+// TODO step4 speedup
+// remember triplets of which the median vectors have already been added
+// if such triplets are present - do not reanalyse this triplet
         #if (debug || debugMJ || debugMJStep4)
         trace("{MJ}.step4(" + epsilon + ")");
+        #end
+        #if (timeInfo && (cpp || cs || java || macro || neko || php || python))
+        timestamp = Sys.time();
         #end
         var seqToAdd:List<Pair<String, Float>> = new List<Pair<String, Float>>();
         var s1:Seq = first;
@@ -421,10 +520,10 @@ class Seqs {
             for(s2p in s1.connectedTo) {
                 var s2:Seq = s2p.first;
 //                if(s1 == s2) { continue; } // not possible
-                for(s3p in s1.connectedTo) {
+                for(s3p in s1.connectedTo) { // this can probably be done faster by adding the if-statement here
 //                    if(s2 == s3) { continue; } // not possible
                     var s3:Seq = s3p.first;
-                    if(s2 == s3) {
+                    if(s2.id >= s3.id) {
                         continue;
                     }
                     #if (debug || debugMJ || debugMJStep4)
@@ -499,6 +598,9 @@ class Seqs {
         }
         trace("LENGHT:", length);
         #end
+        #if (timeInfo && (cpp || cs || java || macro || neko || php || python))
+        trace("Time usage of step4:",(Sys.time() - timestamp));
+        #end
         return nrSeqsAdded;
     }
 
@@ -518,135 +620,142 @@ class Seqs {
         #if (debug || debugMJ || debugMJfinishedAddingSamples)
         trace("{MJ}.finishedAddingSamples()");
         #end
-        // calculate ipos
-        ipos.clear();
-        for(pos in 0...first.originalSequence.length) {
+        if(length == 0) {
+            throw "Need at least one sequence to run the mj algorithm on ...";
+        } else if(length > 1) { // do not do anything for only one sequence
+            // calculate ipos
+            ipos.clear();
+            for(pos in 0...first.originalSequence.length) {
+                var current:Seq = first;
+                while(current != null) {
+                    if(first.originalSequence.charCodeAt(pos) != current.originalSequence.charCodeAt(pos)) {
+                        ipos.add(pos);
+                        break;
+                    }
+                    current = current.next;
+                }
+            }
+            #if (debug || debugMJ || debugMJfinishedAddingSamples)
+            trace("{MJ}.finishedAddingSamples()->ipos:");
+            trace(((ipos == null) ? "null" : ipos.toString()));
+            #end
+            // call the reduced string calculation for each ipos
             var current:Seq = first;
             while(current != null) {
-                if(first.originalSequence.charCodeAt(pos) != current.originalSequence.charCodeAt(pos)) {
-                    ipos.add(pos);
-                    break;
+                current.createReducedSequence(ipos);
+                current = current.next;
+            }
+            // calc rweights
+            if(weights == null) {
+                rweights = new Vector<Float>(ipos.length);
+                for(i in 0...ipos.length) {
+                    rweights[i] = 1;
+                }
+            } else {
+                if(this.weights.length != first.originalSequence.length) {
+                    throw "Expected " + first.originalSequence.length + " weights but got " + this.weights.length + " weights!";
+                }
+                this.rweights = new Vector(ipos.length);
+                var iii:Int = 0;
+                for(e in ipos) {
+                    this.rweights[iii++] = weights[e];
+                }
+            }
+            #if (debug || debugMJ || debugMJfinishedAddingSamples)
+            trace("{MJ}.finishedAddingSamples()->rweights:");
+            if(rweights == null) {
+                trace("null");
+            } else {
+                for(e in rweights) {
+                    trace(e);
+                }
+            }
+            #end
+            #if (debug || debugMJ)
+            trace("{MJ}.runMJ(" + epsilon + ") on " + length + " vcts of length " + first.reducedSequence.length + " orig: " + first.originalSequence.length);
+            var round:Int = 0;
+            #end
+            var iii:Int = 0;
+            do {
+                #if (debug || debugMJ)
+                trace("{MJ}.runMJ(...)->round:" + (round++));
+                #end
+                step1();
+                step2(epsilon);
+                iii = step3();
+                if(iii != 0) {
+                    continue;
+                }
+                iii = step4(epsilon);
+            } while(iii != 0);
+            step5();
+            // finalize the whole thing
+            #if (debug || debugMJ || debugMJfinalize)
+            trace("{MJ}.finalize()");
+            #end
+            var id:Int = 1;
+            var current:Seq = first;
+            var v:Vector<String> = new Vector<String>(first.originalSequence.length);
+            for(i in 0...first.originalSequence.length) {
+                v[i] = first.originalSequence.charAt(i);
+            }
+            while(current != null) {
+                // overwrite id
+                current.id = (id++);
+                // create links
+                if(current.isSample) {
+                    var current2:Seq = current.next;
+                    while(current2 != null && current2.isSample) {
+                        var c:Int = countConnections(current, current2);
+                        if (c > 0) {
+                            current.links.add(new Pair(current2,c));
+                            current2.links.add(new Pair(current,c));
+                        }
+                        current2 = current2.next;
+                    }
+                }
+                // construct fully sequence
+                else {
+                    current.constructSeq(v,ipos);
+                }
+                // process next
+                current = current.next;
+            }
+            // assign species ids
+            var nextSpId:Int = 1;
+            var l:List<Seq> = new List<Seq>();
+            current = first;
+            while(current != null && current.isSample) {
+                if(current.speciesId == 0) {
+                    current.speciesId = nextSpId;
+                    // set all species connected by link the species id.
+                    l.clear();
+                    l.add(current);
+                    while(!l.isEmpty()) {
+                        var c:Seq = l.pop();
+                        for(n in c.links) {
+                            var n:Seq = n.first;
+                            if(n.speciesId == 0) {
+                                n.speciesId = nextSpId;
+                                l.add(n);
+                            } else if(n.speciesId != nextSpId) {
+                                throw "Something somewhere went terribly wrong (#1)!";
+                            }
+                        }
+                    }
+                    // set next sp. id.
+                    nextSpId++;
                 }
                 current = current.next;
             }
-        }
-        #if (debug || debugMJ || debugMJfinishedAddingSamples)
-        trace("{MJ}.finishedAddingSamples()->ipos:");
-        trace(((ipos == null) ? "null" : ipos.toString()));
-        #end
-        // call the reduced string calculation for each ipos
-        var current:Seq = first;
-        while(current != null) {
-            current.createReducedSequence(ipos);
-            current = current.next;
-        }
-        // calc rweights
-        if(weights == null) {
-            rweights = new Vector<Float>(ipos.length);
-            for(i in 0...ipos.length) {
-                rweights[i] = 1;
-            }
-        } else {
-            if(this.weights.length != first.originalSequence.length) {
-                throw "Expected " + first.originalSequence.length + " weights but got " + this.weights.length + " weights!";
-            }
-            this.rweights = new Vector(ipos.length);
-            var iii:Int = 0;
-            for(e in ipos) {
-                this.rweights[iii++] = weights[e];
-            }
-        }
-        #if (debug || debugMJ || debugMJfinishedAddingSamples)
-        trace("{MJ}.finishedAddingSamples()->rweights:");
-        if(rweights == null) {
-            trace("null");
-        } else {
-            for(e in rweights) {
-                trace(e);
-            }
-        }
-        #end
-        #if (debug || debugMJ)
-        trace("{MJ}.runMJ(" + epsilon + ")");
-        var round:Int = 0;
-        #end
-        var iii:Int = 0;
-        do {
-            #if (debug || debugMJ)
-            trace("{MJ}.runMJ(...)->round:" + (round++));
-            #end
-            step1();
-            step2(epsilon);
-            iii = step3();
-            if(iii != 0) {
-                continue;
-            }
-            iii = step4(epsilon);
-        } while(iii != 0);
-        step5();
-        // finalize the whole thing
-        #if (debug || debugMJ || debugMJfinalize)
-        trace("{MJ}.finalize()");
-        #end
-        var id:Int = 1;
-        var current:Seq = first;
-        var v:Vector<String> = new Vector<String>(first.originalSequence.length);
-        for(i in 0...first.originalSequence.length) {
-            v[i] = first.originalSequence.charAt(i);
-        }
-        while(current != null) {
-            // overwrite id
-            current.id = (id++);
-            // create links
-            if(current.isSample) {
-                var current2:Seq = current.next;
-                while(current2 != null && current2.isSample) {
-                    var c:Int = countConnections(current, current2);
-                    if (c > 0) {
-                        current.links.add(new Pair(current2,c));
-                        current2.links.add(new Pair(current,c));
-                    }
-                    current2 = current2.next;
-                }
-            }
-            // construct fully sequence
-            else {
-                current.constructSeq(v,ipos);
-            }
-            // process next
-            current = current.next;
-        }
-        // assign species ids
-        var nextSpId:Int = 1;
-        var l:List<Seq> = new List<Seq>();
-        current = first;
-        while(current != null && current.isSample) {
-            if(current.speciesId == 0) {
-                current.speciesId = nextSpId;
-                // set all species connected by link the species id.
-                l.clear();
-                l.add(current);
-                while(!l.isEmpty()) {
-                    var c:Seq = l.pop();
-                    for(n in c.links) {
-                        var n:Seq = n.first;
-                        if(n.speciesId == 0) {
-                            n.speciesId = nextSpId;
-                            l.add(n);
-                        } else if(n.speciesId != nextSpId) {
-                            throw "Something somewhere went terribly wrong (#1)!";
-                        }
-                    }
-                }
-                // set next sp. id.
-                nextSpId++;
-            }
-            current = current.next;
         }
     }
     public inline function getSeqIdentifier(s:String):String {
         if(s == null) {
             return null;
+        }
+        if(lowerUpperCaseDoNotDiffer) { 
+            s = s.toUpperCase();
         }
         var pos:Int = s.lastIndexOf("_");
         if(pos == -1) {
@@ -654,18 +763,36 @@ class Seqs {
         }
         return s.substr(0, pos+1);
     }
+    private inline function unify(l:List<String>):List<String> {
+        var result:List<String> = new List<String>();
+        var found:Bool;
+        for(s in l) {
+            s = getSeqIdentifier(s);
+            found = false;
+            for(e in result) {
+                if(e == s) {
+                    found = true;
+                    break;
+                }
+            }
+            if(!found) {
+                result.add(s);
+            }
+        }
+        return result;
+    }
     private inline function countConnections(c1:Seq,c2:Seq):Int {
         var result:Int = 0;
         if(c1.names == null || c2.names == null || c1.names.isEmpty() || c2.names.isEmpty()) {
             result = 0;
         } else {
-            for(s1 in c1.names) {
-                var seqId1:String = getSeqIdentifier(s1);
-                for(s2 in c2.names) {
-                    var seqId2:String = getSeqIdentifier(s2);
-                    if(seqId1 == seqId2) {
+            var n1:List<String> = unify(c1.names);
+            var n2:List<String> = unify(c2.names);
+            for(s1 in n1) {
+                for(s2 in n2) {
+                    if(s1 == s2) {
                         result++;
-                        break; // next name
+                        break; // speedup: next name - cannot be found twice
                     }
                 }
             }

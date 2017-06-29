@@ -17,12 +17,13 @@ class MJ {
             s.addSample(kvp.second, kvp.first.s);
         }
         // end
+        if(myArgs[1] != "-") {
         var r:Array<String> = myArgs[1].split(";");
         var v:Vector<Float> = new Vector<Float>(r.length);
         for(i in 0...r.length) {
             v[i] = Std.parseFloat(r[i]);
         }
-        s.weights = v;
+        s.weights = v;}
         s.runMJ(Std.parseFloat(myArgs[2]));
         var p:StdOutPrinter = new StdOutPrinter();
         s.printTxt(p);
