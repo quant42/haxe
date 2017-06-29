@@ -341,7 +341,6 @@ class Seqs {
             // check which ones to add
             for(delta in deltas) {
                 var isConnected:Bool = false;
-                var minL:Float = Math.POSITIVE_INFINITY;
                 // check if s1 and s2 are connected
                 var l:List<Seq> = new List<Seq>();
                 l.add(delta.s1);
@@ -352,8 +351,7 @@ class Seqs {
                         isConnected = true;
                     }
                     for(p in c.connectedTo) {
-                        minL = Math.min(minL, p.second);
-                        if(p.first.visitedId != nextVisitedId) {
+                        if(p.first.visitedId != nextVisitedId && p.second < delta.dist - epsilon) {
                             l.add(p.first);
                             p.first.visitedId = nextVisitedId;
                         }
@@ -361,10 +359,10 @@ class Seqs {
                 }
                 nextVisitedId++;
                 #if (debug || debugMJ || debugMJStep2)
-                trace(delta.s1.reducedSequence,delta.s2.reducedSequence,isConnected,minL);
+                trace(delta.s1.reducedSequence,delta.s2.reducedSequence,isConnected);
                 #end
                 // if yes, get the lowest edge in the graph
-                if(!isConnected || minL >= delta.dist - epsilon) {
+                if(!isConnected) {
                     toAdd.add(delta);
                 }
             }
